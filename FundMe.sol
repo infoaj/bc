@@ -21,7 +21,6 @@ contract FundMe {
 
 
     // Constructor
-    // Person who deploys the contract becomes owner
     constructor() {
         owner = msg.sender;
     }
@@ -31,7 +30,7 @@ contract FundMe {
     function fund() public payable {
 
         // Minimum donation = $50
-        uint256 minimumUSD = 50 * 10 ** 18;
+        uint256 minimumUSD = 50 * 100;
 
         // Check ETH value in USD
         require(
@@ -61,6 +60,11 @@ contract FundMe {
 
 
     // Get ETH price in USD
+    // Returns price with 2 decimal places
+    //
+    // Example:
+    // $2651.13 => 265113
+    //
     function getPrice()
         public
         view
@@ -76,13 +80,29 @@ contract FundMe {
             ,
         ) = priceFeed.latestRoundData();
 
-        // Chainlink returns 8 decimal places.
-        // Convert to 18 decimal places.
-        return uint256(answer) * 10 ** 10;
+        // Chainlink gives 8 decimals.
+        // Convert 8 decimals -> 2 decimals.
+        //
+        // Example:
+        // 2651.13
+        // Chainlink raw = 265113000000
+        //
+        return uint256(answer) / 10 ** 8;
     }
 
 
     // Convert ETH amount into USD
+    //
+    // Example:
+    // ETH = 0.02
+    // ETH Price = $2651.13
+    //
+    // Result:
+    // $53.02
+    //
+    // Returned as:
+    // 5302
+    //
     function getConversionRate(uint256 ethAmount)
         public
         view
@@ -90,6 +110,11 @@ contract FundMe {
     {
         uint256 ethPrice = getPrice();
 
+        // ethPrice has 2 decimals
+        //
+        // ethAmount has 18 decimals
+        //
+        // Divide by 10^18 to remove ETH decimals.
         uint256 ethAmountInUsd =
             (ethPrice * ethAmount) / 10 ** 18;
 
@@ -106,38 +131,38 @@ contract FundMe {
         );
 
         _;
-
     }
 
 
     // Withdraw all ETH from contract
     // Only owner can withdraw
     function withdraw()
-    public
-    onlyOwner
-{
-    uint256 amount = address(this).balance;
+        public
+        onlyOwner
+    {
+        uint256 amount = address(this).balance;
 
-    (bool success, ) = payable(msg.sender).call{value: amount}("");
+        (bool success, ) =
+            payable(msg.sender).call{value: amount}("");
 
-    require(success, "Transfer failed");
+        require(success, "Transfer failed");
 
 
-    // Reset funders' balances
-    for (
-        uint256 funderIndex = 0;
-        funderIndex < funders.length;
-        funderIndex++
-    ) {
+        // Reset funders' balances
+        for (
+            uint256 funderIndex = 0;
+            funderIndex < funders.length;
+            funderIndex++
+        ) {
 
-        address funder =
-            funders[funderIndex];
+            address funder =
+                funders[funderIndex];
 
-        addressToAmountFunded[funder] = 0;
+            addressToAmountFunded[funder] = 0;
+        }
+
+
+        // Reset funders array
+        funders = new address[](0);
     }
-
-
-    // Reset funders array
-    funders = new address[](0);
-}
 }
